@@ -1,0 +1,196 @@
+import {
+  Action,
+  ActionPanel,
+  closeMainWindow,
+  Color,
+  getPreferenceValues,
+  Icon,
+  Keyboard,
+  List,
+  PopToRootType,
+  openExtensionPreferences,
+  showToast,
+  Toast,
+} from "@raycast/api";
+import { homedir } from "node:os";
+import { useRef, useState } from "react";
+import { useSessions } from "./hooks/use-sessions";
+import { KeroError } from "./lib/kero";
+import { matchesStatus, PaneItem, PaneStatus, StatusFilter } from "./lib/model";
+
+const statuses: Record<PaneStatus, { label: string; color: Color }> = {
+  working: { label: "Working", color: Color.Blue },
+  waiting: { label: "Waiting", color: Color.Orange },
+  idle: { label: "Idle", color: Color.SecondaryText },
+  error: { label: "Error", color: Color.Red },
+  exited: { label: "Exited", color: Color.SecondaryText },
+  unknown: { label: "Unknown", color: Color.SecondaryText },
+};
+
+function shortenDirectory(directory?: string) {
+  const home = homedir();
+  return directory === home ? "~" : directory?.startsWith(`${home}/`) ? `~${directory.slice(home.length)}` : directory;
+}
+
+function CommonActions({ refresh }: { refresh: () => void }) {
+  return (
+    <ActionPanel.Section>
+      <Action
+        title="Refresh Sessions"
+        icon={Icon.ArrowClockwise}
+        shortcut={Keyboard.Shortcut.Common.Refresh}
+        onAction={refresh}
+      />
+      <Action title="Open Extension Preferences" icon={Icon.Gear} onAction={openExtensionPreferences} />
+    </ActionPanel.Section>
+  );
+}
+
+export default function SearchSessions() {
+  const { keroPath } = getPreferenceValues<{ keroPath?: string }>();
+  const { client, groups, isLoading, error, hasSnapshot, refresh } = useSessions(keroPath);
+  const [filter, setFilter] = useState<StatusFilter>("all");
+  const [search, setSearch] = useState("");
+  const focusing = useRef(false);
+  const total = groups.reduce((count, group) => count + group.items.length, 0);
+
+  async function focus(item: PaneItem) {
+    if (focusing.current) return;
+    focusing.current = true;
+    try {
+      await client.focus(item.id);
+    } catch (reason) {
+      if (reason instanceof KeroError && reason.kind === "missing-target") refresh();
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Could Not Open Kero Pane",
+        message: reason instanceof Error ? reason.message : String(reason),
+      });
+      focusing.current = false;
+      return;
+    }
+    try {
+      // Do not hide Raycast until Kero has accepted the focus request.
+      await closeMainWindow({ popToRootType: PopToRootType.Immediate });
+    } catch (reason) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Pane Opened, but Raycast Could Not Close",
+        message: reason instanceof Error ? reason.message : String(reason),
+      });
+    } finally {
+      focusing.current = false;
+    }
+  }
+
+  return (
+    <List
+      isLoading={isLoading}
+      navigationTitle={error && hasSnapshot ? "Kero — Data May Be Outdated" : "Search Kero Sessions"}
+      searchBarPlaceholder="Search projects, sessions, directories, branches, or agents…"
+      onSearchTextChange={setSearch}
+      filtering
+      searchBarAccessory={
+        <List.Dropdown
+          tooltip="Filter by Pane Status"
+          value={filter}
+          onChange={(value) => setFilter(value as StatusFilter)}
+        >
+          <List.Dropdown.Item title="All Statuses" value="all" />
+          <List.Dropdown.Item title="Needs Attention" value="attention" />
+          <List.Dropdown.Item title="Working" value="working" />
+          <List.Dropdown.Item title="Idle" value="idle" />
+          <List.Dropdown.Item title="Exited" value="exited" />
+        </List.Dropdown>
+      }
+    >
+      <List.EmptyView
+        icon={error ? Icon.ExclamationMark : Icon.Terminal}
+        title={
+          error
+            ? "Could Not Load Kero Sessions"
+            : isLoading
+              ? "Loading Kero Sessions…"
+              : total
+                ? "No Matching Panes"
+                : "No Kero Sessions"
+        }
+        description={
+          error
+            ? error.message
+            : total
+              ? "Try another search or status filter."
+              : "Create a session in Kero, then refresh this list."
+        }
+        actions={
+          <ActionPanel>
+            <CommonActions refresh={refresh} />
+          </ActionPanel>
+        }
+      />
+      {groups.map((group) => (
+        <List.Section key={group.id} title={group.title} subtitle={shortenDirectory(group.subtitle)}>
+          {group.items
+            .filter((item) => matchesStatus(item.status, filter))
+            .map((item) => {
+              const status = statuses[item.status];
+              const statusLabel =
+                item.status === "working" && item.progress !== undefined
+                  ? `${status.label} ${item.progress}%`
+                  : status.label;
+              const accessories: List.Item.Accessory[] = [];
+              if (item.process) accessories.push({ text: item.process, tooltip: "Agent or Process" });
+              if (item.branch)
+                accessories.push({ icon: Icon.Code, text: item.branch, tooltip: `Branch: ${item.branch}` });
+              accessories.push({
+                tag: { value: statusLabel, color: status.color },
+                tooltip: `Kero status: ${statusLabel}`,
+              });
+              return (
+                <List.Item
+                  key={item.id}
+                  id={item.id}
+                  title={item.title}
+                  subtitle={shortenDirectory(item.directory)}
+                  keywords={item.keywords}
+                  icon={{ source: Icon.Terminal, tintColor: status.color }}
+                  accessories={accessories}
+                  actions={
+                    <ActionPanel>
+                      <Action title="Open in Kero" icon={Icon.ArrowRight} onAction={() => focus(item)} />
+                      <ActionPanel.Section>
+                        {item.directory && (
+                          <Action.CopyToClipboard
+                            title="Copy Working Directory"
+                            content={item.directory}
+                            shortcut={Keyboard.Shortcut.Common.Copy}
+                          />
+                        )}
+                        <Action.CopyToClipboard title="Copy Pane ID" content={item.id} />
+                      </ActionPanel.Section>
+                      <CommonActions refresh={refresh} />
+                    </ActionPanel>
+                  }
+                />
+              );
+            })}
+        </List.Section>
+      ))}
+      {error && hasSnapshot && total > 0 && !search && (
+        <List.Section title="Connection Warning">
+          <List.Item
+            id="connection-warning"
+            title="Sessions May Be Outdated"
+            subtitle={error.message}
+            icon={Icon.ExclamationMark}
+            actions={
+              <ActionPanel>
+                <CommonActions refresh={refresh} />
+              </ActionPanel>
+            }
+          />
+        </List.Section>
+      )}
+    </List>
+  );
+}
