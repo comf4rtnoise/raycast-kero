@@ -64,7 +64,7 @@ If a refresh fails, the last successful list remains visible with an outdated-da
 
 ## Scope and privacy
 
-The extension only invokes `ls --json`, `projects --json`, and explicit `focus` commands. It does not read terminal screen contents, send keystrokes, close sessions, create panes, or connect to remote hosts. Session metadata stays in memory; the extension does not persist it or send it to an external service. The icon is an original placeholder, not official Kero branding.
+The extension only invokes `ls --json`, `projects --json`, and explicit `focus` commands. It does not read terminal screen contents, send keystrokes, close sessions, create panes, or connect to remote hosts. Session metadata stays in memory; the extension does not persist it or send it to an external service. The extension icon reuses Kero's application artwork. Resource provenance and licenses are documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Raycast's native typography is retained; no unused font files are bundled.
 
 ## Development
 
@@ -105,5 +105,5 @@ src/hooks/use-sessions.ts     Cancellable polling and project cache
 src/lib/kero.ts               CLI discovery, execution, and error handling
 src/lib/model.ts              JSON validation and pane list normalization
 tests/                       Model and mock-CLI regression tests
-assets/extension-icon.png    512 × 512 extension icon
+assets/extension-icon.png    Kero application icon, resized to 512 × 512
 ```
