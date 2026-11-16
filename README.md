@@ -37,6 +37,7 @@ This extension always targets the **local machine**. It removes inherited `KERO_
 ## Usage
 
 - One row per pane, grouped in Kero's project order. Project paths distinguish duplicate names.
+- Kero's own terminal, browser, and program icons identify panes. Selection follows Kero's agent → process → runtime fallback; for example, pi can display the Node.js icon. Agent brand colors are preserved, while status remains visible in a separate tag.
 - **Enter:** Open in Kero (`kero focus <pane-id>`).
 - **⌘R:** Refresh sessions and projects.
 - **⌘⇧C:** Copy the working directory when available.
@@ -104,6 +105,9 @@ src/search-sessions.tsx       Raycast list, filters, and actions
 src/hooks/use-sessions.ts     Cancellable polling and project cache
 src/lib/kero.ts               CLI discovery, execution, and error handling
 src/lib/model.ts              JSON validation and pane list normalization
+src/lib/icons.ts              Kero program icons, selection order, and colors
 tests/                       Model and mock-CLI regression tests
 assets/extension-icon.png    Kero application icon, resized to 512 × 512
+assets/kero/                 Reused Kero UI and program SVGs
+assets/licenses/             Redistributed resource licenses
 ```

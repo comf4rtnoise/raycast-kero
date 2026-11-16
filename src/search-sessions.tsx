@@ -16,6 +16,7 @@ import { homedir } from "node:os";
 import { useRef, useState } from "react";
 import { useSessions } from "./hooks/use-sessions";
 import { KeroError } from "./lib/kero";
+import { KERO_ICONS } from "./lib/icons";
 import { matchesStatus, PaneItem, PaneStatus, StatusFilter } from "./lib/model";
 
 const statuses: Record<PaneStatus, { label: string; color: Color }> = {
@@ -32,16 +33,24 @@ function shortenDirectory(directory?: string) {
   return directory === home ? "~" : directory?.startsWith(`${home}/`) ? `~${directory.slice(home.length)}` : directory;
 }
 
+function keroIcon(source: string) {
+  return { source, tintColor: Color.PrimaryText };
+}
+
 function CommonActions({ refresh }: { refresh: () => void }) {
   return (
     <ActionPanel.Section>
       <Action
         title="Refresh Sessions"
-        icon={Icon.ArrowClockwise}
+        icon={keroIcon(KERO_ICONS.refresh)}
         shortcut={Keyboard.Shortcut.Common.Refresh}
         onAction={refresh}
       />
-      <Action title="Open Extension Preferences" icon={Icon.Gear} onAction={openExtensionPreferences} />
+      <Action
+        title="Open Extension Preferences"
+        icon={keroIcon(KERO_ICONS.settings)}
+        onAction={openExtensionPreferences}
+      />
     </ActionPanel.Section>
   );
 }
@@ -105,7 +114,7 @@ export default function SearchSessions() {
       }
     >
       <List.EmptyView
-        icon={error ? Icon.ExclamationMark : Icon.Terminal}
+        icon={error ? Icon.ExclamationMark : keroIcon(KERO_ICONS.terminal)}
         title={
           error
             ? "Could Not Load Kero Sessions"
@@ -141,7 +150,11 @@ export default function SearchSessions() {
               const accessories: List.Item.Accessory[] = [];
               if (item.process) accessories.push({ text: item.process, tooltip: "Agent or Process" });
               if (item.branch)
-                accessories.push({ icon: Icon.Code, text: item.branch, tooltip: `Branch: ${item.branch}` });
+                accessories.push({
+                  icon: keroIcon(KERO_ICONS.branch),
+                  text: item.branch,
+                  tooltip: `Branch: ${item.branch}`,
+                });
               accessories.push({
                 tag: { value: statusLabel, color: status.color },
                 tooltip: `Kero status: ${statusLabel}`,
@@ -153,20 +166,33 @@ export default function SearchSessions() {
                   title={item.title}
                   subtitle={shortenDirectory(item.directory)}
                   keywords={item.keywords}
-                  icon={{ source: Icon.Terminal, tintColor: status.color }}
+                  icon={{
+                    source: item.icon.source,
+                    tintColor:
+                      item.icon.tint === "primary"
+                        ? Color.PrimaryText
+                        : item.icon.tint === "secondary"
+                          ? Color.SecondaryText
+                          : item.icon.tint,
+                  }}
                   accessories={accessories}
                   actions={
                     <ActionPanel>
-                      <Action title="Open in Kero" icon={Icon.ArrowRight} onAction={() => focus(item)} />
+                      <Action title="Open in Kero" icon={keroIcon(KERO_ICONS.open)} onAction={() => focus(item)} />
                       <ActionPanel.Section>
                         {item.directory && (
                           <Action.CopyToClipboard
                             title="Copy Working Directory"
+                            icon={keroIcon(KERO_ICONS.copy)}
                             content={item.directory}
                             shortcut={Keyboard.Shortcut.Common.Copy}
                           />
                         )}
-                        <Action.CopyToClipboard title="Copy Pane ID" content={item.id} />
+                        <Action.CopyToClipboard
+                          title="Copy Pane ID"
+                          icon={keroIcon(KERO_ICONS.copy)}
+                          content={item.id}
+                        />
                       </ActionPanel.Section>
                       <CommonActions refresh={refresh} />
                     </ActionPanel>

@@ -1,3 +1,5 @@
+import { getPaneIcon, PaneIcon } from "./icons";
+
 export interface Project {
   id: string;
   name: string;
@@ -11,6 +13,8 @@ export interface Pane {
   processDir?: string;
   process?: string;
   agent?: string;
+  runtime?: string;
+  url?: string;
   status?: string;
   progress?: number;
   git?: { branch?: string };
@@ -35,6 +39,7 @@ export interface PaneItem {
   directory?: string;
   process?: string;
   branch?: string;
+  icon: PaneIcon;
   status: PaneStatus;
   progress?: number;
   keywords: string[];
@@ -84,6 +89,8 @@ export function parseSessions(value: unknown): Session[] {
           processDir: optionalString(pane, "processDir"),
           process: optionalString(pane, "process"),
           agent: optionalString(pane, "agent"),
+          runtime: optionalString(pane, "runtime"),
+          url: optionalString(pane, "url"),
           status: optionalString(pane, "status"),
           progress: typeof pane.progress === "number" ? pane.progress : undefined,
           git: object(pane.git) ? { branch: optionalString(pane.git, "branch") } : undefined,
@@ -149,6 +156,7 @@ export function buildGroups(sessions: Session[], projects: Project[]): PaneGroup
         directory,
         process: pane.agent || pane.process,
         branch: pane.git?.branch,
+        icon: getPaneIcon(pane),
         status: normalizeStatus(pane.status),
         progress:
           progress !== undefined && Number.isFinite(progress) && progress >= 0 && progress <= 100
@@ -167,6 +175,7 @@ export function buildGroups(sessions: Session[], projects: Project[]): PaneGroup
           pane.processDir,
           pane.agent,
           pane.process,
+          pane.runtime,
           pane.git?.branch,
         ].filter((value): value is string => Boolean(value)),
       });
