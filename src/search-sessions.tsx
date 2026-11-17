@@ -143,13 +143,13 @@ export default function SearchSessions() {
                   ? `${status.label} ${item.progress}%`
                   : status.label;
               const accessories: List.Item.Accessory[] = [];
-              if (item.program) accessories.push({ text: item.program, tooltip: "Current Program" });
               if (item.branch)
                 accessories.push({
                   icon: keroIcon(KERO_ICONS.branch),
                   text: item.branch,
                   tooltip: `Branch: ${item.branch}`,
                 });
+              if (item.program) accessories.push({ text: item.program, tooltip: "Current Program" });
               accessories.push({
                 tag: { value: statusLabel, color: status.color },
                 tooltip: `Kero status: ${statusLabel}`,
