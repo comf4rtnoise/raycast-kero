@@ -12,11 +12,11 @@ import {
   showToast,
   Toast,
 } from "@raycast/api";
-import { homedir } from "node:os";
 import { useRef, useState } from "react";
 import { useSessions } from "./hooks/use-sessions";
 import { KeroError } from "./lib/kero";
 import { KERO_ICONS } from "./lib/icons";
+import { paneDirectoryLabel, shortenDirectory } from "./lib/directories";
 import { matchesStatus, PaneItem, PaneStatus, StatusFilter } from "./lib/model";
 
 const statuses: Record<PaneStatus, { label: string; color: Color }> = {
@@ -27,11 +27,6 @@ const statuses: Record<PaneStatus, { label: string; color: Color }> = {
   exited: { label: "Exited", color: Color.SecondaryText },
   unknown: { label: "Unknown", color: Color.SecondaryText },
 };
-
-function shortenDirectory(directory?: string) {
-  const home = homedir();
-  return directory === home ? "~" : directory?.startsWith(`${home}/`) ? `~${directory.slice(home.length)}` : directory;
-}
 
 function keroIcon(source: string) {
   return { source, tintColor: Color.PrimaryText };
@@ -164,7 +159,7 @@ export default function SearchSessions() {
                   key={item.id}
                   id={item.id}
                   title={item.title}
-                  subtitle={shortenDirectory(item.directory)}
+                  subtitle={paneDirectoryLabel(item.directory, group.subtitle)}
                   keywords={item.keywords}
                   icon={{
                     source: item.icon.source,

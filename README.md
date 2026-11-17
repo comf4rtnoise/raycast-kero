@@ -43,7 +43,7 @@ This extension always targets the **local machine**. It removes inherited `KERO_
 - **⌘⇧C:** Copy the working directory when available.
 - **⌘K:** Open the action panel to copy a pane ID or open preferences.
 - Status filter: All Statuses, Needs Attention (`waiting` / `error`), Working, Idle, or Exited.
-- Working directory prefers `processDir`, falling back to `dir`.
+- Working directory prefers `processDir`, falling back to `dir`. Pane rows hide directories identical to the project directory, show project subdirectories as relative paths, and retain other paths with home-directory abbreviation (`~`). Full paths remain searchable and copyable; terminal titles are unchanged.
 
 Statuses are Kero's own signals, not an inference about process completion. An idle pane can still contain a running server. Progress appears only when Kero supplies a valid percentage for a working pane.
 
@@ -85,6 +85,7 @@ The user has verified that the basic functionality works in Raycast. The checkli
 - Open the command in Raycast; compare pane count and project grouping with `kero ls --json`.
 - Search by session name, directory, branch, and agent; check all status filters.
 - Confirm same-name projects are distinguishable by directory.
+- Verify matching pane/project directories are hidden on pane rows, child directories are relative, and unrelated/worktree paths remain visible. Confirm full-path search and directory copy still work.
 - Press Enter on a non-focused pane in a multi-pane session; verify the correct Kero pane becomes active and Raycast closes.
 - Verify ⌘R, directory copy, pane ID copy, and extension preferences.
 - Set an invalid CLI path; verify the error and recovery after correcting it.
