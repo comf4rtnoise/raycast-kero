@@ -12,6 +12,7 @@ export interface Pane {
   dir?: string;
   processDir?: string;
   process?: string;
+  shell?: string;
   agent?: string;
   runtime?: string;
   url?: string;
@@ -37,7 +38,7 @@ export interface PaneItem {
   projectId: string;
   title: string;
   directory?: string;
-  process?: string;
+  program?: string;
   branch?: string;
   icon: PaneIcon;
   status: PaneStatus;
@@ -88,6 +89,7 @@ export function parseSessions(value: unknown): Session[] {
           dir: optionalString(pane, "dir"),
           processDir: optionalString(pane, "processDir"),
           process: optionalString(pane, "process"),
+          shell: optionalString(pane, "shell"),
           agent: optionalString(pane, "agent"),
           runtime: optionalString(pane, "runtime"),
           url: optionalString(pane, "url"),
@@ -129,6 +131,14 @@ export function matchesStatus(status: PaneStatus, filter: StatusFilter): boolean
   return filter === "all" || (filter === "attention" ? status === "waiting" || status === "error" : status === filter);
 }
 
+// A user-facing program label, not the raw Kero `process` field: Kero leaves
+// that field empty when the pane's own shell is in the foreground.
+function currentProgram(pane: Pane): string | undefined {
+  if (pane.status === "exited") return undefined;
+  if (pane.url) return "Browser";
+  return pane.agent || pane.process || pane.shell || undefined;
+}
+
 export function buildGroups(sessions: Session[], projects: Project[]): PaneGroup[] {
   // Map insertion order preserves the project's sidebar order. Never sort by live status.
   const groups = new Map<string, PaneGroup>(
@@ -148,13 +158,14 @@ export function buildGroups(sessions: Session[], projects: Project[]): PaneGroup
       const title =
         session.panes.length > 1 ? `${sessionTitle} / ${paneTitle}` : session.name || pane.title || sessionTitle;
       const progress = pane.progress;
+      const program = currentProgram(pane);
       group.items.push({
         id: pane.id,
         sessionId: session.id,
         projectId,
         title,
         directory,
-        process: pane.agent || pane.process,
+        program,
         branch: pane.git?.branch,
         icon: getPaneIcon(pane),
         status: normalizeStatus(pane.status),
@@ -176,6 +187,7 @@ export function buildGroups(sessions: Session[], projects: Project[]): PaneGroup
           pane.agent,
           pane.process,
           pane.runtime,
+          program,
           pane.git?.branch,
         ].filter((value): value is string => Boolean(value)),
       });

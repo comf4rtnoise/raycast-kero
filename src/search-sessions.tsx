@@ -143,7 +143,7 @@ export default function SearchSessions() {
                   ? `${status.label} ${item.progress}%`
                   : status.label;
               const accessories: List.Item.Accessory[] = [];
-              if (item.process) accessories.push({ text: item.process, tooltip: "Agent or Process" });
+              if (item.program) accessories.push({ text: item.program, tooltip: "Current Program" });
               if (item.branch)
                 accessories.push({
                   icon: keroIcon(KERO_ICONS.branch),

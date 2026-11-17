@@ -37,6 +37,7 @@ This extension always targets the **local machine**. It removes inherited `KERO_
 ## Usage
 
 - One row per pane, grouped in Kero's project order. Project paths distinguish duplicate names.
+- The **Current Program** label shows the agent, foreground program, or shell (in that order). Shell-only panes consistently show `zsh`, `bash`, etc., whether or not Kero sets its `process` field. Browser panes show `Browser`; exited panes have no current-program label. Visible program labels are searchable.
 - Kero's own terminal, browser, and program icons identify panes. Selection follows Kero's agent → process → runtime fallback; for example, pi can display the Node.js icon. Agent brand colors are preserved, while status remains visible in a separate tag.
 - **Enter:** Open in Kero (`kero focus <pane-id>`).
 - **⌘R:** Refresh sessions and projects.
@@ -85,6 +86,7 @@ The user has verified that the basic functionality works in Raycast. The checkli
 - Open the command in Raycast; compare pane count and project grouping with `kero ls --json`.
 - Search by session name, directory, branch, and agent; check all status filters.
 - Confirm same-name projects are distinguishable by directory.
+- Verify shell-only panes consistently show their shell name in both single- and multi-pane sessions; foreground programs/agents take precedence, browser panes show Browser, and exited panes have no current-program label.
 - Verify matching pane/project directories are hidden on pane rows, child directories are relative, and unrelated/worktree paths remain visible. Confirm full-path search and directory copy still work.
 - Press Enter on a non-focused pane in a multi-pane session; verify the correct Kero pane becomes active and Raycast closes.
 - Verify ⌘R, directory copy, pane ID copy, and extension preferences.

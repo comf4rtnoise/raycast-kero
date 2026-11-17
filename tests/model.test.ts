@@ -49,7 +49,7 @@ test("one row per pane with explicit target and process directory", () => {
   assert.equal(item.sessionId, "s2");
   assert.equal(item.title, "Review / Agent");
   assert.equal(item.directory, "/work/personal/kero");
-  assert.equal(item.process, "pi");
+  assert.equal(item.program, "pi");
   assert.equal(item.progress, 40);
   for (const keyword of [
     "kero",
@@ -116,6 +116,124 @@ test("rejects malformed structural JSON and duplicate pane IDs", () => {
   }
   assert.throws(() => parseProjects({}));
   assert.throws(() => parseProjects([{ name: "no-id" }]));
+});
+
+test("shows the same shell label regardless of process field or other panes", () => {
+  const groups = buildGroups(
+    parseSessions([
+      { id: "single", panes: [{ id: "base", shell: "zsh", status: "idle" }] },
+      {
+        id: "multi",
+        panes: [
+          { id: "nested", process: "zsh", shell: "zsh", status: "idle" },
+          { id: "agent", agent: "pi", shell: "zsh", status: "working" },
+          { id: "other-shell", shell: "zsh", status: "idle" },
+        ],
+      },
+    ]),
+    [],
+  );
+  const items = groups.flatMap((group) => group.items);
+  assert.deepEqual(
+    items.map((item) => item.program),
+    ["zsh", "zsh", "pi", "zsh"],
+  );
+  for (const item of items.filter((item) => item.program === "zsh")) {
+    assert.ok(item.keywords.includes("zsh"));
+  }
+  assert.ok(!items[2].keywords.includes("zsh"), "An agent's underlying shell is not its current program");
+});
+
+test("current program prefers agent, then foreground program, then shell", () => {
+  const [group] = buildGroups(
+    parseSessions([
+      {
+        id: "s",
+        panes: [
+          { id: "a", agent: "claude", process: "node", shell: "zsh" },
+          { id: "b", process: "python", shell: "bash" },
+          { id: "c", shell: "fish" },
+          { id: "d", agent: "", process: "", shell: "zsh" },
+        ],
+      },
+    ]),
+    [],
+  );
+  assert.deepEqual(
+    group.items.map((item) => item.program),
+    ["claude", "python", "fish", "zsh"],
+  );
+});
+
+test("browser label takes precedence over shell and stale terminal fields", () => {
+  const [group] = buildGroups(
+    parseSessions([
+      {
+        id: "s",
+        panes: [
+          { id: "a", url: "about:blank", agent: "pi", process: "node", shell: "zsh" },
+          { id: "b", url: "https://example.com" },
+          { id: "c", url: "", shell: "zsh" },
+        ],
+      },
+    ]),
+    [],
+  );
+  assert.deepEqual(
+    group.items.map((item) => item.program),
+    ["Browser", "Browser", "zsh"],
+  );
+  assert.ok(group.items[0].keywords.includes("Browser"));
+});
+
+test("exited panes never present a configured shell or historical program as current", () => {
+  const [group] = buildGroups(
+    parseSessions([
+      {
+        id: "s",
+        panes: [
+          { id: "a", shell: "zsh", status: "exited" },
+          { id: "b", agent: "pi", process: "node", shell: "zsh", status: "exited" },
+          { id: "c", url: "about:blank", status: "exited" },
+        ],
+      },
+    ]),
+    [],
+  );
+  assert.ok(group.items.every((item) => item.program === undefined && item.status === "exited"));
+});
+
+test("missing or invalid shell metadata does not invent a current program", () => {
+  const [group] = buildGroups(
+    parseSessions([
+      {
+        id: "s",
+        panes: [
+          { id: "a" },
+          { id: "b", shell: 42 },
+          { id: "c", shell: "" },
+          { id: "d", command: ["node", "old-command.js"], runtime: "node" },
+        ],
+      },
+    ]),
+    [],
+  );
+  assert.ok(group.items.every((item) => item.program === undefined));
+});
+
+test("shell fallback preserves automatic titles and full directory values", () => {
+  const title = "user@host:~/work/project";
+  const directory = "/Users/user/work/project";
+  const [group] = buildGroups(
+    parseSessions([{ id: "s", panes: [{ id: "a", title, dir: directory, shell: "zsh", status: "idle" }] }]),
+    [],
+  );
+  const item = group.items[0];
+  assert.equal(item.program, "zsh");
+  assert.equal(item.title, title);
+  assert.equal(item.directory, directory);
+  assert.ok(item.keywords.includes(title));
+  assert.ok(item.keywords.includes(directory));
 });
 
 test("ignores unknown fields and invalid optional data", () => {
