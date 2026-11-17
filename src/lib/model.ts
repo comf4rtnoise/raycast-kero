@@ -156,7 +156,7 @@ export function buildGroups(sessions: Session[], projects: Project[]): PaneGroup
       const sessionTitle = session.name || session.title || session.id;
       const paneTitle = pane.title || pane.agent || pane.process || pane.id;
       const title =
-        session.panes.length > 1 ? `${sessionTitle} / ${paneTitle}` : session.name || pane.title || sessionTitle;
+        session.panes.length > 1 ? `${sessionTitle} › ${paneTitle}` : session.name || pane.title || sessionTitle;
       const progress = pane.progress;
       const program = currentProgram(pane);
       group.items.push({

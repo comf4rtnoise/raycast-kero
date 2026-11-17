@@ -36,7 +36,7 @@ This extension always targets the **local machine**. It removes inherited `KERO_
 
 ## Usage
 
-- One row per pane, grouped in Kero's project order. Project paths distinguish duplicate names.
+- One row per pane, grouped in Kero's project order. Project paths distinguish duplicate names. Multi-pane sessions use `Session › Pane` titles; single-pane titles and the original terminal title text are unchanged.
 - The **Current Program** label shows the agent, foreground program, or shell (in that order). Shell-only panes consistently show `zsh`, `bash`, etc., whether or not Kero sets its `process` field. Browser panes show `Browser`; exited panes have no current-program label. Visible program labels are searchable.
 - Kero's own terminal, browser, and program icons identify panes. Selection follows Kero's agent → process → runtime fallback; for example, pi can display the Node.js icon. Agent brand colors are preserved, while status remains visible in a separate tag.
 - **Enter:** Open in Kero (`kero focus <pane-id>`).

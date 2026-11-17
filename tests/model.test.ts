@@ -47,7 +47,7 @@ test("one row per pane with explicit target and process directory", () => {
   const item = buildGroups(sessions, projects)[1].items[0];
   assert.equal(item.id, "a");
   assert.equal(item.sessionId, "s2");
-  assert.equal(item.title, "Review / Agent");
+  assert.equal(item.title, "Review › Agent");
   assert.equal(item.directory, "/work/personal/kero");
   assert.equal(item.program, "pi");
   assert.equal(item.progress, 40);
@@ -67,6 +67,26 @@ test("one row per pane with explicit target and process directory", () => {
   }
   assert.equal(buildGroups(sessions, projects)[0].items[0].title, "Server");
   assert.equal(buildGroups(sessions, projects)[1].items[1].progress, undefined);
+});
+
+test("multi-pane titles use a hierarchy separator without rewriting terminal titles or paths", () => {
+  const title = "user@host:~/work/project / terminal";
+  const [group] = buildGroups(
+    parseSessions([
+      {
+        id: "s",
+        name: "Review / work",
+        panes: [
+          { id: "a", title },
+          { id: "b", title: "shell" },
+        ],
+      },
+    ]),
+    [],
+  );
+  assert.equal(group.items[0].title, `Review / work › ${title}`);
+  assert.equal(group.items[1].title, "Review / work › shell");
+  assert.ok(group.items[0].keywords.includes(title));
 });
 
 test("copy targets distinguish session and pane IDs even for single-pane sessions", () => {
