@@ -42,7 +42,8 @@ This extension always targets the **local machine**. It removes inherited `KERO_
 - **Enter:** Open in Kero (`kero focus <pane-id>`).
 - **⌘R:** Refresh sessions and projects.
 - **⌘⇧C:** Copy the working directory when available.
-- **⌘K:** Open the action panel to copy a pane ID or open preferences.
+- **⌘K:** Open the action panel. **Copy Session ID** copies the owning session's ID; **Copy Pane ID** copies the selected pane's ID. Both are available even in single-pane sessions. **Open in Kero** still targets the exact pane.
+- Session and pane IDs have different scopes: for example, `kero close <session-id>` closes the session, while `kero close <pane-id>` closes that pane. Choose the appropriate copy action for your CLI command.
 - Status filter: All Statuses, Needs Attention (`waiting` / `error`), Working, Idle, or Exited.
 - Working directory prefers `processDir`, falling back to `dir`. Pane rows hide directories identical to the project directory, show project subdirectories as relative paths, and retain other paths with home-directory abbreviation (`~`). Full paths remain searchable and copyable; terminal titles are unchanged.
 
@@ -89,7 +90,7 @@ The user has verified that the basic functionality works in Raycast. The checkli
 - Verify shell-only panes consistently show their shell name in both single- and multi-pane sessions; foreground programs/agents take precedence, browser panes show Browser, and exited panes have no current-program label.
 - Verify matching pane/project directories are hidden on pane rows, child directories are relative, and unrelated/worktree paths remain visible. Confirm full-path search and directory copy still work.
 - Press Enter on a non-focused pane in a multi-pane session; verify the correct Kero pane becomes active and Raycast closes.
-- Verify ⌘R, directory copy, pane ID copy, and extension preferences.
+- Verify ⌘R, directory copy, session ID copy, pane ID copy, and extension preferences. Compare both copied IDs with `kero ls --json`; panes in the same session must share a Session ID but have distinct Pane IDs.
 - Set an invalid CLI path; verify the error and recovery after correcting it.
 - Close a test pane from Kero while its row is displayed; verify the extension recovers gracefully.
 - Stop the local development watcher when finished.

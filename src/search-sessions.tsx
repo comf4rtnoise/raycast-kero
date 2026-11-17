@@ -184,6 +184,11 @@ export default function SearchSessions() {
                           />
                         )}
                         <Action.CopyToClipboard
+                          title="Copy Session ID"
+                          icon={keroIcon(KERO_ICONS.copy)}
+                          content={item.sessionId}
+                        />
+                        <Action.CopyToClipboard
                           title="Copy Pane ID"
                           icon={keroIcon(KERO_ICONS.copy)}
                           content={item.id}

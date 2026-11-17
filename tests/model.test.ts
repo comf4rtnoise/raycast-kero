@@ -69,6 +69,30 @@ test("one row per pane with explicit target and process directory", () => {
   assert.equal(buildGroups(sessions, projects)[1].items[1].progress, undefined);
 });
 
+test("copy targets distinguish session and pane IDs even for single-pane sessions", () => {
+  const [group] = buildGroups(parseSessions([{ id: "session-single", panes: [{ id: "pane-single" }] }]), []);
+  assert.equal(group.items[0].sessionId, "session-single");
+  assert.equal(group.items[0].id, "pane-single");
+});
+
+test("panes share their owning session ID but retain distinct pane targets", () => {
+  const [group] = buildGroups(
+    parseSessions([
+      { id: "session-a", panes: [{ id: "pane-a1" }, { id: "pane-a2" }] },
+      { id: "session-b", panes: [{ id: "pane-b1" }] },
+    ]),
+    [],
+  );
+  assert.deepEqual(
+    group.items.map((item) => ({ sessionId: item.sessionId, paneId: item.id })),
+    [
+      { sessionId: "session-a", paneId: "pane-a1" },
+      { sessionId: "session-a", paneId: "pane-a2" },
+      { sessionId: "session-b", paneId: "pane-b1" },
+    ],
+  );
+});
+
 test("handles missing projects, optional fields, and future statuses", () => {
   const groups = buildGroups(
     parseSessions([
