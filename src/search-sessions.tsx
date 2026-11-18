@@ -13,6 +13,7 @@ import {
   Toast,
 } from "@raycast/api";
 import { useRef, useState } from "react";
+import NewSession from "./new-session";
 import { useSessions } from "./hooks/use-sessions";
 import { KeroError } from "./lib/kero";
 import { KERO_ICONS } from "./lib/icons";
@@ -35,6 +36,12 @@ function keroIcon(source: string) {
 function CommonActions({ refresh }: { refresh: () => void }) {
   return (
     <ActionPanel.Section>
+      <Action.Push
+        title="New Kero Session"
+        icon={Icon.Plus}
+        shortcut={Keyboard.Shortcut.Common.New}
+        target={<NewSession />}
+      />
       <Action
         title="Refresh Sessions"
         icon={keroIcon(KERO_ICONS.refresh)}
@@ -124,7 +131,7 @@ export default function SearchSessions() {
             ? error.message
             : total
               ? "Try another search or status filter."
-              : "Create a session in Kero, then refresh this list."
+              : "Use New Kero Session to create a shell session."
         }
         actions={
           <ActionPanel>
