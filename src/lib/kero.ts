@@ -3,9 +3,11 @@ import { access } from "node:fs/promises";
 import { constants } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, isAbsolute, join } from "node:path";
-import { parseProjects, parseSessions } from "./model";
+import { parseProjects, parseSessions, Session } from "./model";
+import { newSessionArgs, NewSessionInput } from "./new-session";
 
-export type KeroErrorKind = "missing-cli" | "missing-target" | "unreachable" | "timeout" | "invalid-data" | "failed";
+export type KeroErrorKind =
+  "missing-cli" | "missing-target" | "unreachable" | "timeout" | "invalid-data" | "failed" | "creation-uncertain";
 
 export class KeroError extends Error {
   constructor(
@@ -118,6 +120,43 @@ export class KeroClient {
 
   async projects(signal?: AbortSignal) {
     return parseProjects(parseJson(await this.run(["projects", "--json"], signal)));
+  }
+
+  async createSession(input: NewSessionInput): Promise<Session> {
+    // Refresh selected projects before creation: unknown --project values create
+    // new projects in Kero instead of failing. Directory validation is local.
+    const projects = input.projectId ? await this.projects() : [];
+    const args = await newSessionArgs(input, projects);
+    let output: string;
+    try {
+      // Do not abort a mutation on view unmount: killing its CLI cannot undo it.
+      // Do not use --focus: Kero ignores select errors for that flag.
+      output = await this.run(args);
+    } catch (reason) {
+      if (reason instanceof KeroError && reason.kind === "missing-cli") throw reason;
+      throw new KeroError(
+        "creation-uncertain",
+        "Creation could not be confirmed. Check Search Kero Sessions before creating another session. " +
+          (reason instanceof KeroError && reason.kind === "timeout"
+            ? "Kero did not respond within 8 seconds."
+            : reason instanceof Error
+              ? reason.message
+              : String(reason)),
+      );
+    }
+    try {
+      const [session] = parseSessions([parseJson(output)]);
+      const validId = /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/;
+      if (session.panes.length !== 1 || !validId.test(session.id) || !validId.test(session.panes[0].id)) {
+        throw new Error("Invalid new session response");
+      }
+      return session;
+    } catch {
+      throw new KeroError(
+        "creation-uncertain",
+        "Kero returned an unexpected creation response. The session may already exist. Check Search Kero Sessions before creating another session.",
+      );
+    }
   }
 
   async focus(paneId: string, signal?: AbortSignal) {
