@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -75,7 +76,44 @@ test("application icon is a 512px PNG and redistribution licenses are included",
   assert.equal(png.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
   assert.equal(png.readUInt32BE(16), 512);
   assert.equal(png.readUInt32BE(20), 512);
-  for (const name of ["Kero-MIT.txt", "Framework7-MIT.txt", "Meteor-MIT.txt", "Simple-Icons-CC0.txt"]) {
+  for (const name of [
+    "Kero-MIT.txt",
+    "Framework7-MIT.txt",
+    "Meteor-MIT.txt",
+    "Simple-Icons-CC0.txt",
+    "CC-BY-3.0.txt",
+    "Deno-MIT.txt",
+    "GitHub-Octicons-MIT.txt",
+  ]) {
     assert.ok(readFileSync(join(assets, "licenses", name), "utf8").length > 500);
+  }
+});
+
+test("distributed notices inventory every program icon once and link every bundled license", () => {
+  const notice = readFileSync(join(assets, "licenses/NOTICE.md"), "utf8");
+  const inventoried = [...notice.matchAll(/^\| `(kero\/si-[^`]+\.svg)`\s+\|/gm)].map((match) => match[1]);
+  assert.deepEqual(inventoried.sort(), [...new Set(PROGRAM_ICONS.values())].sort());
+
+  const linkedLicenses = new Set([...notice.matchAll(/\]\(([A-Za-z0-9.-]+\.txt)\)/g)].map((match) => match[1]));
+  const bundledLicenses = readdirSync(join(assets, "licenses")).filter((name) => name.endsWith(".txt"));
+  assert.deepEqual([...linkedLicenses].sort(), bundledLicenses.sort());
+  assert.match(notice, /Git Logo by Jason Long/);
+  assert.match(notice, /Copyright \(c\) 2018-2024 the Deno authors/);
+  assert.match(notice, /Copyright \(c\) 2026 GitHub Inc\./);
+});
+
+test("program icons with identified copyright licenses retain their reviewed SVG bytes", () => {
+  // Replacing one of these SVGs requires reviewing its provenance and notices again.
+  // These hashes verify the reviewed artifact, not legal permission for its use.
+  const reviewed = {
+    "si-git.svg": "541eb699337be0bfbd0472f3c23515fb4eb2cc3b19bc3c959e793dee2eee4aaa",
+    "si-deno.svg": "7d120032154e55535f4b6a8784fcadbeecde8c27ec8b0d43a76a7b5bac9ce38c",
+    "si-githubcopilot.svg": "3dceb0d5f764bda01e573cb71124500ceb9b37555e6f060052a67829281358fe",
+  };
+  for (const [name, expected] of Object.entries(reviewed)) {
+    const actual = createHash("sha256")
+      .update(readFileSync(join(assets, "kero", name)))
+      .digest("hex");
+    assert.equal(actual, expected, name);
   }
 });
