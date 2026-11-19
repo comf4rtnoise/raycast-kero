@@ -12,8 +12,9 @@ import {
   showToast,
   Toast,
 } from "@raycast/api";
-import { useRef, useState } from "react";
-import NewSession from "./new-session";
+import { useEffect, useRef, useState } from "react";
+import { NewSessionForm } from "./new-session";
+import { InstallKeroAction } from "./components/install-kero-action";
 import { useSessions } from "./hooks/use-sessions";
 import { KeroError } from "./lib/kero";
 import { KERO_ICONS } from "./lib/icons";
@@ -33,14 +34,14 @@ function keroIcon(source: string) {
   return { source, tintColor: Color.PrimaryText };
 }
 
-function CommonActions({ refresh }: { refresh: () => void }) {
+function CommonActions({ refresh, error }: { refresh: () => void; error?: Error }) {
   return (
     <ActionPanel.Section>
       <Action.Push
         title="New Kero Session"
         icon={Icon.Plus}
         shortcut={Keyboard.Shortcut.Common.New}
-        target={<NewSession />}
+        target={<NewSessionForm isNested />}
       />
       <Action
         title="Refresh Sessions"
@@ -48,6 +49,7 @@ function CommonActions({ refresh }: { refresh: () => void }) {
         shortcut={Keyboard.Shortcut.Common.Refresh}
         onAction={refresh}
       />
+      <InstallKeroAction error={error} />
       <Action
         title="Open Extension Preferences"
         icon={keroIcon(KERO_ICONS.settings)}
@@ -64,6 +66,23 @@ export default function SearchSessions() {
   const [search, setSearch] = useState("");
   const focusing = useRef(false);
   const total = groups.reduce((count, group) => count + group.items.length, 0);
+  const lastRefreshError = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!error) {
+      lastRefreshError.current = undefined;
+      return;
+    }
+    if (!hasSnapshot || lastRefreshError.current === error.message) return;
+    lastRefreshError.current = error.message;
+    // Warn even when search filtering hides the warning row. Avoid repeating
+    // the same toast on every polling failure or changing the root title.
+    void showToast({
+      style: Toast.Style.Failure,
+      title: "Sessions May Be Outdated",
+      message: error.message,
+    }).catch(() => undefined);
+  }, [error, hasSnapshot]);
 
   async function focus(item: PaneItem) {
     if (focusing.current) return;
@@ -97,7 +116,6 @@ export default function SearchSessions() {
   return (
     <List
       isLoading={isLoading}
-      navigationTitle={error && hasSnapshot ? "Kero — Data May Be Outdated" : "Search Kero Sessions"}
       searchBarPlaceholder="Search projects, sessions, directories, branches, or agents…"
       onSearchTextChange={setSearch}
       filtering
@@ -135,7 +153,7 @@ export default function SearchSessions() {
         }
         actions={
           <ActionPanel>
-            <CommonActions refresh={refresh} />
+            <CommonActions refresh={refresh} error={error} />
           </ActionPanel>
         }
       />
@@ -201,7 +219,7 @@ export default function SearchSessions() {
                           content={item.id}
                         />
                       </ActionPanel.Section>
-                      <CommonActions refresh={refresh} />
+                      <CommonActions refresh={refresh} error={error} />
                     </ActionPanel>
                   }
                 />
@@ -218,7 +236,7 @@ export default function SearchSessions() {
             icon={Icon.ExclamationMark}
             actions={
               <ActionPanel>
-                <CommonActions refresh={refresh} />
+                <CommonActions refresh={refresh} error={error} />
               </ActionPanel>
             }
           />

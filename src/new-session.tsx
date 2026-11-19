@@ -19,15 +19,17 @@ import { shortenDirectory } from "./lib/directories";
 import { KeroClient, KeroError } from "./lib/kero";
 import type { Project, Session } from "./lib/model";
 import { NewSessionFormValues, NewSessionInput, SessionInputError, sessionInputFromForm } from "./lib/new-session";
+import { SessionCreationRequest } from "./lib/session-creation";
+import { InstallKeroAction } from "./components/install-kero-action";
 
-export default function NewSession() {
+export function NewSessionForm({ isNested = false }: { isNested?: boolean }) {
   const { keroPath } = getPreferenceValues<{ keroPath?: string }>();
   const client = useMemo(() => new KeroClient(keroPath), [keroPath]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<string>();
   const [directoryOverride, setDirectoryOverride] = useState<string>();
   const [loadingProjects, setLoadingProjects] = useState(true);
-  const [projectError, setProjectError] = useState<string>();
+  const [projectError, setProjectError] = useState<Error>();
   const [revision, setRevision] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof NewSessionInput, string>>>({});
   const [busy, setBusy] = useState(false);
@@ -35,8 +37,7 @@ export default function NewSession() {
   const [uncertainMessage, setUncertainMessage] = useState<string>();
   const mounted = useRef(false);
   const submitting = useRef(false);
-  const createdRef = useRef<Session | undefined>(undefined);
-  const uncertain = useRef(false);
+  const [request] = useState(() => new SessionCreationRequest());
 
   useEffect(() => {
     mounted.current = true;
@@ -59,7 +60,7 @@ export default function NewSession() {
           }
         },
         (reason: unknown) => {
-          if (!controller.signal.aborted) setProjectError(reason instanceof Error ? reason.message : String(reason));
+          if (!controller.signal.aborted) setProjectError(reason instanceof Error ? reason : new Error(String(reason)));
         },
       )
       .finally(() => {
@@ -73,8 +74,8 @@ export default function NewSession() {
   }
 
   async function submit(values: NewSessionFormValues = {}) {
-    if (submitting.current || uncertain.current) return;
-    if (!createdRef.current && (loadingProjects || projectError)) return;
+    if (submitting.current || request.uncertain) return;
+    if (!request.session && (loadingProjects || projectError)) return;
     submitting.current = true;
     setBusy(true);
     setFieldErrors({});
@@ -82,18 +83,18 @@ export default function NewSession() {
     try {
       await showToast({
         style: Toast.Style.Animated,
-        title: createdRef.current ? "Opening Kero Session…" : "Creating Kero Session…",
+        title: request.session ? "Opening Kero Session…" : "Creating Kero Session…",
       });
-      if (!createdRef.current) {
-        if (!selectedProject) throw new SessionInputError("projectId", "Select an existing project first.");
-        const session = await client.createSession(
-          sessionInputFromForm({ ...values, projectId: selectedProjectId, directory: [directory] }),
-        );
-        // Keep the ID before focus/close: retries must never create a second session.
-        createdRef.current = session;
-        if (mounted.current) setCreated(session);
-      }
-      if (!mounted.current) {
+      if (!request.session && !selectedProject)
+        throw new SessionInputError("projectId", "Select an existing project first.");
+      const result = await request.run(
+        client,
+        request.session
+          ? {}
+          : sessionInputFromForm({ ...values, projectId: selectedProjectId, directory: [directory] }),
+        { isActive: () => mounted.current, onCreated: setCreated },
+      );
+      if (!result.opened) {
         await showToast({
           style: Toast.Style.Success,
           title: "Kero Session Created",
@@ -101,7 +102,6 @@ export default function NewSession() {
         });
         return;
       }
-      await client.focus(createdRef.current.panes[0].id);
       opened = true;
       await showToast({ style: Toast.Style.Success, title: "Kero Session Opened" });
       if (mounted.current) await closeMainWindow({ popToRootType: PopToRootType.Immediate });
@@ -110,17 +110,16 @@ export default function NewSession() {
       if (reason instanceof SessionInputError && mounted.current) {
         setFieldErrors({ [reason.field]: message });
       }
-      if (reason instanceof KeroError && reason.kind === "creation-uncertain") {
-        uncertain.current = true;
-        if (mounted.current) setUncertainMessage(message);
+      if (reason instanceof KeroError && reason.kind === "creation-uncertain" && mounted.current) {
+        setUncertainMessage(message);
       }
       await showToast({
         style: Toast.Style.Failure,
         title: opened
           ? "Session Opened, but Raycast Could Not Close"
-          : createdRef.current
+          : request.session
             ? "Session Created, but Could Not Open"
-            : uncertain.current
+            : request.uncertain
               ? "Session Creation Unconfirmed"
               : "Could Not Create Kero Session",
         message,
@@ -136,7 +135,7 @@ export default function NewSession() {
   const directory = directoryOverride || selectedProject?.dir || homedir();
   return (
     <Form
-      navigationTitle="New Kero Session"
+      navigationTitle={isNested ? "New Kero Session" : undefined}
       isLoading={loadingProjects || busy}
       actions={
         <ActionPanel>
@@ -162,6 +161,7 @@ export default function NewSession() {
               onAction={() => setRevision((value) => value + 1)}
             />
           )}
+          <InstallKeroAction error={projectError} />
           <Action title="Open Extension Preferences" icon={Icon.Gear} onAction={openExtensionPreferences} />
         </ActionPanel>
       }
@@ -176,7 +176,10 @@ export default function NewSession() {
       ) : (
         <>
           {projectError && (
-            <Form.Description title="Could Not Load Projects" text={`${projectError} Use Refresh Projects to retry.`} />
+            <Form.Description
+              title="Could Not Load Projects"
+              text={`${projectError.message} Use Refresh Projects to retry.`}
+            />
           )}
           {!loadingProjects && !projectError && projects.length === 0 && (
             <Form.Description title="No Projects" text="Add a project in Kero, then use Refresh Projects." />
@@ -228,4 +231,8 @@ export default function NewSession() {
       )}
     </Form>
   );
+}
+
+export default function NewSession() {
+  return <NewSessionForm />;
 }
