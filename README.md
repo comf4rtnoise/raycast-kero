@@ -1,142 +1,95 @@
 # Kero for Raycast
 
-Search and create local Kero sessions without leaving your keyboard. Search by project, session name, terminal title, directory, Git branch, agent, or pane ID, then press **Enter** to open the exact pane in Kero. Use **New Kero Session** to create and open a shell session in a project or directory.
+A [Raycast](https://www.raycast.com) extension for [Kero](https://github.com/egoist/kero). Find and open local terminal sessions and panes, or create a shell session in an existing project.
 
 ## Requirements
 
-- macOS with Raycast and Kero installed.
-- A working Kero CLI and reachable local `kerod`. Tested against **Kero 2.1.35 (protocol 3)**. Older versions have not been verified.
-- For development: Node.js **22.22.2 or newer** and npm (required by the currently installed Raycast SDK).
-- No Raycast Pro or external API key is required by this extension.
+- **macOS** with Raycast installed.
+- **[Kero](https://github.com/egoist/kero/releases)** and its command-line tool. Open Kero, then choose **Kero → Install Command Line Tool…** from the menu bar to install `kero` on your `PATH`.
+- At least one Kero project to use **New Kero Session**.
 
-## Local installation
+Keep Kero available while using the extension. It connects only to the local machine; remote Kero hosts are not supported.
 
-This project is not yet published to the Raycast Store.
-
-```bash
-npm install
-npm run dev
-```
-
-Run **Search Kero Sessions** or **New Kero Session** in Raycast. If necessary, use Raycast's **Import Extension** command and select this project directory. Raycast's extension development commands require signing in.
-
-`npm run dev` builds/registers the local extension and watches source files. Keep it running while developing; press Ctrl+C to stop the watcher.
-
-### Kero CLI Path
-
-In extension preferences, optionally set **Kero CLI Path** to the absolute executable path. Find it in your terminal with:
+The extension detects the CLI automatically. If it cannot find Kero, use **Download Kero** or **Open Extension Preferences** from the action panel. For a custom installation, set **Kero CLI Path** to the absolute path returned by:
 
 ```bash
 command -v kero
 ```
 
-Automatic detection checks `/usr/local/bin/kero`, `/opt/homebrew/bin/kero`, then absolute directories in the Raycast process's `PATH`. The preferences field also accepts `~/…`. An explicitly configured but invalid path produces an error instead of silently selecting another executable.
+## Install from source
 
-This extension always targets the **local machine**. It removes inherited `KERO_HOST`, `KERO_SESSION`, and `KERO_PANE` values from child-process environments and always supplies a full pane ID for focus actions.
+This extension is not yet available in the Raycast Store. With Node.js **22.22.2 or newer** and npm installed, open this repository's directory and run:
 
-## Usage
+```bash
+npm ci
+npm run dev
+```
 
-- One row per pane, grouped in Kero's project order. Project paths distinguish duplicate names. Multi-pane sessions use `Session › Pane` titles; single-pane titles and the original terminal title text are unchanged.
-- The **Current Program** label shows the agent, foreground program, or shell (in that order). Shell-only panes consistently show `zsh`, `bash`, etc., whether or not Kero sets its `process` field. Browser panes show `Browser`; exited panes have no current-program label. Visible program labels are searchable.
-- Kero's own terminal, browser, and program icons identify panes. Selection follows Kero's agent → process → runtime fallback; for example, pi can display the Node.js icon. Agent brand colors are preserved, while status remains visible in a separate tag.
-- Right-side information is ordered **Git Branch → Current Program → Status**; status tag styling is unchanged.
-- **Enter:** Open in Kero (`kero focus <pane-id>`).
-- **⌘N:** Open the New Kero Session form, including when the list is empty.
-- **⌘R:** Refresh sessions and projects.
-- **⌘⇧C:** Copy the working directory when available.
-- **⌘K:** Open the action panel. **Copy Session ID** copies the owning session's ID; **Copy Pane ID** copies the selected pane's ID. Both are available even in single-pane sessions. **Open in Kero** still targets the exact pane.
-- Session and pane IDs have different scopes: for example, `kero close <session-id>` closes the session, while `kero close <pane-id>` closes that pane. Choose the appropriate copy action for your CLI command.
-- Status filter: All Statuses, Needs Attention (`waiting` / `error`), Working, Idle, or Exited.
-- Working directory prefers `processDir`, falling back to `dir`. Pane rows hide directories identical to the project directory, show project subdirectories as relative paths, and retain other paths with home-directory abbreviation (`~`). Full paths remain searchable and copyable; terminal titles are unchanged.
+Sign in to Raycast if prompted. Keep the development command running, then open **Search Kero Sessions** or **New Kero Session** in Raycast. If the commands do not appear, use Raycast's **Import Extension** command and select this directory.
 
-Statuses are Kero's own signals, not an inference about process completion. An idle pane can still contain a running server. Progress appears only when Kero supplies a valid percentage for a working pane.
+## Commands
 
-While the command is mounted, sessions refresh five seconds after each completed query. Project metadata is cached for up to one minute; manual refresh reloads both. Rows are not sorted by changing status. Requests are canceled on unmount, and focusing a pane closes Raycast and immediately returns its view to root to release polling resources.
+### Search Kero Sessions
 
-If a refresh fails, the last successful list remains visible with an outdated-data warning. A failed focus request does not close Raycast.
+Search by project, session name, terminal title, directory, Git branch, agent, program, or pane ID. Each result represents one pane, grouped under its project. Press **↵** to open that exact pane in Kero.
+
+- Multi-pane sessions display `Session › Pane`; original terminal titles are preserved.
+- The right side shows **Git branch → current program → status**. Shell-only panes show their shell, such as `zsh`; exited panes have no current-program label.
+- A pane's directory is hidden when it matches the project directory. Subdirectories appear as relative paths; other paths use `~` for Home. Search and copy actions still use the full paths.
+
+Use the status dropdown to show **All Statuses**, **Needs Attention**, **Working**, **Idle**, or **Exited**. Needs Attention includes waiting and error states. Status comes from Kero: an idle pane may still contain a running server.
+
+Available actions:
+
+| Action                         | Shortcut | Description                                           |
+| ------------------------------ | -------- | ----------------------------------------------------- |
+| **Open in Kero**               | ↵        | Focus the selected pane.                              |
+| **New Kero Session**           | ⌘N       | Open the creation form, including from an empty list. |
+| **Refresh Sessions**           | ⌘R       | Reload sessions and projects.                         |
+| **Copy Working Directory**     | ⌘⇧C      | Copy the full working directory, when available.      |
+| **Copy Session ID**            | —        | Copy the ID of the pane's owning session.             |
+| **Copy Pane ID**               | —        | Copy the selected pane's ID.                          |
+| **Open Extension Preferences** | —        | Configure the Kero CLI path.                          |
+
+Press **⌘K** to open the action panel. Session IDs and pane IDs have different scopes in the Kero CLI; choose the appropriate copy action for your command.
+
+The list refreshes automatically while open. If a refresh fails, the previous results remain available with an outdated-data warning; press **⌘R** to retry.
 
 ### New Kero Session
 
-Run **New Kero Session** directly in Raycast, or press **⌘N** from Search Kero Sessions.
+Create a local shell session and open it in Kero. Run the command directly, or press **⌘N** from Search Kero Sessions.
 
-- **Project:** Options show only existing project names; selection still uses the project's ID internally. The first project is selected initially; there is no Automatic option. If no projects exist, add one in Kero and refresh before creating a session.
-- **Working Directory:** A single-folder picker shown immediately after Project, preselected with the project's directory so its folder icon and folder are visible. Projects without a directory default to Home. Clicking still opens the macOS folder picker. Switching projects resets the selection to that project's directory; clearing a manual override restores the default. The info tooltip includes the current path. The selected folder must still exist and be accessible at submission; the extension does not create directories.
-- **Session Name:** Optional. Leave empty to retain Kero's automatic title.
-- **Create and Open:** Create a local shell session with `new --json`, then focus the exact returned pane. Kero starts its configured shell; custom commands, browser sessions, and worktree creation are not exposed.
-- **⌘R / Refresh Projects:** Reload available projects. The selected project is also checked against fresh CLI data before submission to avoid passing a stale ID as a new project name.
+1. **Project** — select an existing project. The first project is selected initially; there is no automatic-project option.
+2. **Working Directory** — starts with the selected project's directory, or Home if the project has no directory. Click the folder picker to choose another folder using the macOS dialog. Switching projects resets the directory; clearing a manual selection restores the default.
+3. **Session Name** — optional. Leave empty to use Kero's automatic title.
 
-Repeated submissions are ignored while a request is running. If creation succeeds but opening fails, **Open Created Session** retries only the focus operation; both IDs remain available to copy. If a creation request times out, fails after dispatch, or returns an unexpected response, the form disables further creation and offers **Search Kero Sessions** so you can check whether it already exists before reopening the creation form. There are no automatic creation retries.
+Choose **Create and Open** to start the session using Kero's configured shell. Use **⌘R** to refresh the project list. Custom commands, browser sessions, and worktree creation are not supported by this form.
 
-Project queries are canceled when leaving the form. A submitted creation request is not canceled: terminating the CLI cannot undo a session already created by Kero. If the view has unmounted before creation completes, the extension does not initiate focus. Form values are not persisted by the extension.
+If the session is created but cannot be opened, **Open Created Session** retries opening the same session without creating another. If creation cannot be confirmed, use **Search Kero Sessions** to check whether it already exists before trying again.
+
+## Preferences
+
+| Preference        | Description                                                                                                                                                    |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Kero CLI Path** | Optional absolute path to the Kero executable, such as `/usr/local/bin/kero`. Paths starting with `~/` are also accepted. Leave empty for automatic detection. |
+
+Automatic detection checks `/usr/local/bin/kero`, `/opt/homebrew/bin/kero`, then absolute directories in Raycast's `PATH`. A manually configured path takes priority; correct or clear it if the executable moves.
 
 ## Troubleshooting
 
-| Problem                              | What to do                                                                                               |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| CLI not found                        | Install Kero or configure **Kero CLI Path**. Raycast does not necessarily inherit your shell's `PATH`.   |
-| Cannot reach kerod                   | Open/check Kero and press ⌘R. The extension does not start or restart the daemon automatically.          |
-| Pane no longer exists                | The list refreshes after this focus error. Select another pane.                                          |
-| Remote Control / permission error    | Follow Kero's permission guidance. The extension surfaces the CLI error and does not bypass permissions. |
-| No sessions                          | Use **New Kero Session**, or create one in Kero and refresh.                                             |
-| No matching panes                    | Clear the search or switch the status filter to All Statuses.                                            |
-| Invalid JSON / incompatible response | Check the installed Kero version; retry after updating Kero.                                             |
+| Problem                                | What to do                                                                                                                           |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **CLI not found**                      | Install Kero's command-line tool from its menu bar, or set **Kero CLI Path**. Raycast may not inherit the same `PATH` as your shell. |
+| **Cannot reach kerod**                 | Open Kero, then refresh. The extension does not start the daemon automatically.                                                      |
+| **No projects**                        | Add a project in Kero, then use **Refresh Projects** in the creation form.                                                           |
+| **Directory unavailable**              | Choose an existing, accessible folder. A folder may have been moved or deleted since it was selected.                                |
+| **Pane no longer exists**              | Refresh and select another pane.                                                                                                     |
+| **No matching panes**                  | Clear the search or switch to **All Statuses**.                                                                                      |
+| **Permission or Remote Control error** | Follow Kero's permission guidance. The extension does not bypass its restrictions.                                                   |
+| **Creation unconfirmed**               | Check Search Kero Sessions before retrying; a timeout does not necessarily mean creation failed.                                     |
 
-## Scope and privacy
+## Privacy
 
-The extension invokes `ls --json`, `projects --json`, explicit `focus` commands, and `new --json` only when the creation form is submitted. New sessions start Kero's configured shell, including its normal startup files. The extension checks local directory existence and access for the form. It does not read terminal screen contents, send keystrokes, close sessions, split panes, or connect to remote hosts. Session metadata stays in memory; the extension does not persist it or send it to an external service. The extension icon reuses Kero's application artwork. Resource provenance and licenses are documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Raycast's native typography is retained; no unused font files are bundled.
+The extension reads local session/project metadata and sends explicit create/focus requests to Kero. It does not read terminal screen contents, send keystrokes, close sessions, or send metadata to an external service.
 
-## Development
-
-```bash
-npm test             # Model and CLI adapter tests, including timeout/cancellation
-npm run typecheck    # TypeScript, including tests
-npm run build        # Raycast production build
-npm run lint         # Official metadata, icon, ESLint, and formatting checks
-```
-
-Tests use synthetic fixtures and temporary mock CLI executables; they do not focus, create, or close real Kero sessions.
-
-### Manual acceptance checklist
-
-The user has verified that the basic functionality works in Raycast. The checklist below remains the regression guide; individual edge cases have not all been confirmed.
-
-- Open the command in Raycast; compare pane count and project grouping with `kero ls --json`.
-- Search by session name, directory, branch, and agent; check all status filters.
-- Confirm same-name projects are distinguishable by directory.
-- Verify shell-only panes consistently show their shell name in both single- and multi-pane sessions; foreground programs/agents take precedence, browser panes show Browser, and exited panes have no current-program label.
-- Verify matching pane/project directories are hidden on pane rows, child directories are relative, and unrelated/worktree paths remain visible. Confirm full-path search and directory copy still work.
-- Verify right-side information is ordered branch, program, then status, with the existing status tags and search placeholder unchanged.
-- Press Enter on a non-focused pane in a multi-pane session; verify the correct Kero pane becomes active and Raycast closes.
-- Verify ⌘R, directory copy, session ID copy, pane ID copy, and extension preferences. Compare both copied IDs with `kero ls --json`; panes in the same session must share a Session ID but have distinct Pane IDs.
-- Open New Kero Session directly and through ⌘N (including an empty session list). Verify name-only project options, project loading, and ⌘R. Verify field order is Project → Working Directory → Session Name, with no bottom explanation and a Create and Open action.
-- Create disposable test sessions with default fields, a selected project, an explicit directory, and a custom name; verify their actual directory/project and exact pane focus. Close only those test sessions when done.
-- Verify Project has no Automatic option and initially selects the first project. No projects must block creation. Verify the directory picker shows the preselected project folder, opens the macOS picker, and accepts only one folder. Switching projects resets even a manually chosen folder; clearing the selection restores the project/Home default. A folder removed after selection and stale project selections must show field errors without creating a session. Ensure field values remain available after validation failures.
-- Submit repeatedly while creation is pending; verify only one session is created. If focus fails after creation, verify Open Created Session does not create another. If creation is unconfirmed, check the search list before reopening the form; never blindly retry.
-- Leave the form while creation is pending; verify the session may finish creating but does not unexpectedly initiate focus after unmount.
-- Set an invalid CLI path; verify the error and recovery after correcting it.
-- Close a test pane from Kero while its row is displayed; verify the extension recovers gracefully.
-- Stop the local development watcher when finished.
-
-### Publishing blockers / known limitations
-
-- `package.json` currently uses `xiaoyangsean` as a provisional author. Raycast's user API returned 404 for that username during lint. **Replace it with your actual Raycast account username before the full official lint/publish workflow.** This does not prevent local build/development.
-- `npm audit` currently reports **7 moderate development-toolchain findings**, all stemming from the `typescript-eslint` dependency on `minimatch`. A non-forced `npm audit fix` did not resolve them; the latest queried `typescript-eslint` still requires the affected major. No cross-major override is applied. `npm audit --omit=dev` should be checked separately for production dependencies.
-- Basic functionality has passed user verification in Raycast. Detailed edge-case and error-recovery checks remain part of manual acceptance; automated CLI tests do not replace them.
-- New-session UI interactions and real-session creation/focus still require manual acceptance; automated creation tests use a mock CLI.
-- No remote hosts, history recovery, custom-command/browser/worktree creation, screen previews, or destructive actions in this version.
-
-## Structure
-
-```text
-src/search-sessions.tsx       Raycast list, filters, and actions
-src/new-session.tsx           Session creation form and focus recovery
-src/hooks/use-sessions.ts     Cancellable polling and project cache
-src/lib/kero.ts               CLI discovery, execution, and error handling
-src/lib/new-session.ts        Creation input validation and literal CLI arguments
-src/lib/model.ts              JSON validation and pane list normalization
-src/lib/icons.ts              Kero program icons, selection order, and colors
-tests/                       Model and mock-CLI regression tests
-assets/extension-icon.png    Kero application icon, resized to 512 × 512
-assets/kero/                 Reused Kero UI and program SVGs
-assets/licenses/             Redistributed resource licenses
-```
+Kero artwork and program icons are reused with attribution. See [Third-party notices](THIRD_PARTY_NOTICES.md).
