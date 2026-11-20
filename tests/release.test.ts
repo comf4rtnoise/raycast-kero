@@ -19,17 +19,23 @@ test("the npm prepublish guard fails locally and directs users to the reviewed S
   assert.equal(manifest.scripts["export:store"], "node scripts/export-store.mjs");
 });
 
-test("both commands use automatic discovery without exposing CLI configuration", () => {
+test("CLI override is optional text input with automatic detection as the default", () => {
   const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-  assert.equal(manifest.preferences, undefined);
+  assert.equal(manifest.preferences.length, 1);
+  assert.deepEqual(manifest.preferences[0], {
+    name: "keroPath",
+    type: "textfield",
+    required: false,
+    title: "Kero CLI Path",
+    description: "Leave empty for auto-detection.",
+    placeholder: "/usr/local/bin/kero",
+  });
   for (const command of manifest.commands) assert.equal(command.preferences, undefined);
-  for (const file of ["src/search-sessions.tsx", "src/new-session.tsx", "src/hooks/use-sessions.ts"]) {
-    assert.doesNotMatch(
-      readFileSync(join(root, file), "utf8"),
-      /getPreferenceValues|openExtensionPreferences|keroPath/,
-    );
+  for (const file of ["src/search-sessions.tsx", "src/new-session.tsx"]) {
+    const content = readFileSync(join(root, file), "utf8");
+    assert.match(content, /getPreferenceValues<Preferences>/);
+    assert.match(content, /openExtensionPreferences/);
   }
-  assert.doesNotMatch(readFileSync(join(root, "README.md"), "utf8"), /Kero CLI Path|Open Extension Preferences/);
 });
 
 test("changelog release headings follow Raycast's bracketed title and date format", () => {
