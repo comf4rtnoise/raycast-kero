@@ -19,6 +19,19 @@ test("the npm prepublish guard fails locally and directs users to the reviewed S
   assert.equal(manifest.scripts["export:store"], "node scripts/export-store.mjs");
 });
 
+test("both commands use automatic discovery without exposing CLI configuration", () => {
+  const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+  assert.equal(manifest.preferences, undefined);
+  for (const command of manifest.commands) assert.equal(command.preferences, undefined);
+  for (const file of ["src/search-sessions.tsx", "src/new-session.tsx", "src/hooks/use-sessions.ts"]) {
+    assert.doesNotMatch(
+      readFileSync(join(root, file), "utf8"),
+      /getPreferenceValues|openExtensionPreferences|keroPath/,
+    );
+  }
+  assert.doesNotMatch(readFileSync(join(root, "README.md"), "utf8"), /Kero CLI Path|Open Extension Preferences/);
+});
+
 test("changelog release headings follow Raycast's bracketed title and date format", () => {
   const headings = readFileSync(join(root, "CHANGELOG.md"), "utf8")
     .split("\n")
