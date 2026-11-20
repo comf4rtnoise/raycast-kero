@@ -31,6 +31,9 @@ test("Store export excludes development material without deleting the independen
       readFileSync(join(destination, "src/new-session.tsx"), "utf8"),
       readFileSync(join(root, "src/new-session.tsx"), "utf8"),
     );
+    for (const file of ["README.md", "THIRD_PARTY_NOTICES.md"]) {
+      assert.doesNotMatch(readFileSync(join(destination, file), "utf8"), /\bnpm (?:run )?test\b/, file);
+    }
     const manifest = json(join(destination, "package.json"));
     assert.equal(manifest.scripts.test, undefined);
     assert.equal(manifest.scripts["export:store"], undefined);
