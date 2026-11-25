@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -34,6 +34,8 @@ test("Store export excludes development material without deleting the independen
     for (const file of ["README.md", "THIRD_PARTY_NOTICES.md"]) {
       assert.doesNotMatch(readFileSync(join(destination, file), "utf8"), /\bnpm (?:run )?test\b/, file);
     }
+    const programLogos = readdirSync(join(destination, "assets/kero")).filter((name) => name.startsWith("si-"));
+    assert.deepEqual(programLogos.sort(), ["si-deno.svg", "si-git.svg", "si-githubcopilot.svg"]);
     const manifest = json(join(destination, "package.json"));
     assert.equal(manifest.scripts.test, undefined);
     assert.equal(manifest.scripts["export:store"], undefined);

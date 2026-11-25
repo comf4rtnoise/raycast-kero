@@ -9,22 +9,51 @@ import { buildGroups, parseSessions } from "../src/lib/model";
 const assets = join(__dirname, "../assets");
 
 test("program icons follow Kero's agent, process, runtime priority", () => {
-  assert.equal(getPaneIcon({ agent: "claude", process: "node", runtime: "python" }).source, "kero/si-claude.svg");
-  assert.equal(getPaneIcon({ agent: "pi", process: "python3", runtime: "node" }).source, "kero/si-python.svg");
-  assert.equal(getPaneIcon({ agent: "pi", process: "pi", runtime: "node" }).source, "kero/si-nodedotjs.svg");
-  assert.equal(getPaneIcon({ agent: "codex" }).source, "kero/si-openai.svg");
-  assert.equal(getPaneIcon({ process: "cursor-agent" }).source, "kero/si-cursor.svg");
+  assert.deepEqual(getPaneIcon({ agent: "claude", process: "node", runtime: "python" }).source, { builtin: "Stars" });
+  assert.deepEqual(getPaneIcon({ agent: "pi", process: "python3", runtime: "node" }).source, { builtin: "CodeBlock" });
+  assert.deepEqual(getPaneIcon({ agent: "pi", process: "pi", runtime: "node" }).source, { builtin: "CodeBlock" });
+  assert.deepEqual(getPaneIcon({ agent: "codex", process: "git" }).source, { builtin: "Stars" });
+  assert.deepEqual(getPaneIcon({ process: "cursor-agent", runtime: "deno" }).source, { builtin: "Stars" });
+  assert.deepEqual(getPaneIcon({ agent: "pi", process: "vim", runtime: "node" }).source, { builtin: "Pencil" });
+  assert.deepEqual(getPaneIcon({ agent: "pi", process: "unknown", runtime: "deno" }).source, { asset: "kero/si-deno.svg" });
+  assert.deepEqual(getPaneIcon({ process: "git", runtime: "node" }).source, { asset: "kero/si-git.svg" });
+});
+
+test("all replaced brand logos use native Raycast category icons, including process/runtime aliases", () => {
+  const categories = {
+    Stars: ["claude", "codex", "gemini", "opencode", "amp", "cursor-agent", "qwen", "kimi", "cline"],
+    CodeBlock: ["node", "bun", "python", "python3"],
+    Pencil: ["vim", "nvim"],
+    Box: ["docker"],
+  };
+  for (const [builtin, programs] of Object.entries(categories)) {
+    for (const program of programs) {
+      for (const field of ["agent", "process", "runtime"]) {
+        assert.deepEqual(getPaneIcon({ [field]: program }).source, { builtin }, `${field}: ${program}`);
+      }
+    }
+  }
+});
+
+test("Git, Deno, and Copilot retain their reviewed brand assets", () => {
+  for (const [program, asset] of [
+    ["git", "kero/si-git.svg"],
+    ["deno", "kero/si-deno.svg"],
+    ["copilot", "kero/si-githubcopilot.svg"],
+  ]) {
+    assert.deepEqual(getPaneIcon({ agent: program }).source, { asset });
+  }
 });
 
 test("browser panes use the globe even when an agent is present", () => {
-  assert.equal(getPaneIcon({ url: "about:blank", agent: "claude" }).source, KERO_ICONS.globe);
-  assert.equal(getPaneIcon({ url: "https://example.com" }).source, KERO_ICONS.globe);
-  assert.equal(getPaneIcon({ url: "", process: "zsh" }).source, KERO_ICONS.terminal);
+  assert.deepEqual(getPaneIcon({ url: "about:blank", agent: "claude" }).source, { asset: KERO_ICONS.globe });
+  assert.deepEqual(getPaneIcon({ url: "https://example.com" }).source, { asset: KERO_ICONS.globe });
+  assert.deepEqual(getPaneIcon({ url: "", process: "zsh" }).source, { builtin: "Terminal" });
 });
 
 test("shells and unknown programs safely fall back to the terminal icon", () => {
   for (const process of [undefined, "zsh", "fish", "unknown", "constructor", "__proto__"]) {
-    assert.equal(getPaneIcon({ process }).source, KERO_ICONS.terminal);
+    assert.deepEqual(getPaneIcon({ process }).source, { builtin: "Terminal" });
   }
 });
 
@@ -50,16 +79,17 @@ test("JSON parsing preserves runtime/browser identity through list normalization
     },
   ]);
   const items = buildGroups(sessions, [])[0].items;
-  assert.equal(items[0].icon.source, "kero/si-nodedotjs.svg");
+  assert.deepEqual(items[0].icon.source, { builtin: "CodeBlock" });
   assert.ok(items[0].keywords.includes("node"));
-  assert.equal(items[1].icon.source, KERO_ICONS.globe);
-  assert.equal(items[2].icon.source, KERO_ICONS.terminal);
+  assert.deepEqual(items[1].icon.source, { asset: KERO_ICONS.globe });
+  assert.deepEqual(items[2].icon.source, { builtin: "Terminal" });
   assert.equal(sessions[0].panes[2].runtime, undefined);
   assert.equal(sessions[0].panes[2].url, undefined);
 });
 
 test("every referenced SVG is bundled and no unused SVG is shipped", () => {
-  const used = new Set([...Object.values(KERO_ICONS), ...PROGRAM_ICONS.values()]);
+  const programAssets = [...PROGRAM_ICONS.values()].flatMap((source) => ("asset" in source ? [source.asset] : []));
+  const used = new Set([...Object.values(KERO_ICONS), ...programAssets]);
   const bundled = new Set(readdirSync(join(assets, "kero")).map((file) => `kero/${file}`));
   assert.deepEqual(bundled, used);
   for (const source of used) {
@@ -92,7 +122,14 @@ test("application icon is a 512px PNG and redistribution licenses are included",
 test("distributed notices inventory every program icon once and link every bundled license", () => {
   const notice = readFileSync(join(assets, "licenses/NOTICE.md"), "utf8");
   const inventoried = [...notice.matchAll(/^\| `(kero\/si-[^`]+\.svg)`\s+\|/gm)].map((match) => match[1]);
-  assert.deepEqual(inventoried.sort(), [...new Set(PROGRAM_ICONS.values())].sort());
+  const programAssets = [...PROGRAM_ICONS.values()].flatMap((source) => ("asset" in source ? [source.asset] : []));
+  assert.deepEqual(inventoried.sort(), [...new Set(programAssets)].sort());
+  assert.deepEqual(inventoried.sort(), ["kero/si-deno.svg", "kero/si-git.svg", "kero/si-githubcopilot.svg"]);
+  assert.doesNotMatch(
+    notice,
+    /review pending|remain under review|si-(?:amp|bun|claude|cline|cursor|docker|googlegemini|kimi|neovim|nodedotjs|openai|opencode|python|qwen|vim)\.svg/i,
+  );
+  assert.match(notice, /Raycast.*built-in/);
 
   const linkedLicenses = new Set([...notice.matchAll(/\]\(([A-Za-z0-9.-]+\.txt)\)/g)].map((match) => match[1]));
   const bundledLicenses = readdirSync(join(assets, "licenses")).filter((name) => name.endsWith(".txt"));
