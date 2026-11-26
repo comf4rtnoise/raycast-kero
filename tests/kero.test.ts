@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile, rm, symlink } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { test } from "node:test";
-import { KeroClient, KeroError, localEnvironment, resolveKeroPath, runKero } from "../src/lib/kero";
+import { KeroClient, KeroError, keroCandidates, localEnvironment, resolveKeroPath, runKero } from "../src/lib/kero";
 import { SessionInputError } from "../src/lib/new-session";
 
 async function fakeKero(source: string, run: (binary: string) => Promise<void>) {
@@ -27,10 +27,74 @@ test("removes inherited target/host without mutating parent environment", () => 
   assert.equal(source.KERO_HOST, "remote");
 });
 
-test("explicit executable path supports spaces; bad preferences never silently fall back", async () => {
-  await fakeKero("", async (binary) => assert.equal(await resolveKeroPath(binary), binary));
-  await assert.rejects(resolveKeroPath("/does/not/exist/kero"), hasKind("missing-cli"));
-  await assert.rejects(resolveKeroPath("./kero"), hasKind("missing-cli"));
+test("automatic detection checks common CLI paths, absolute PATH entries, and installed app bundles", () => {
+  assert.deepEqual(keroCandidates(":relative:.:/custom/bin:/path with spaces", "/Users/test"), [
+    "/usr/local/bin/kero",
+    "/opt/homebrew/bin/kero",
+    "/custom/bin/kero",
+    "/path with spaces/kero",
+    "/Applications/Kero.app/Contents/MacOS/Kero",
+    "/Users/test/Applications/Kero.app/Contents/MacOS/Kero",
+  ]);
+});
+
+test("executable candidates support spaces; absent or relative candidates produce installation guidance", async () => {
+  await fakeKero("", async (binary) => assert.equal(await resolveKeroPath(undefined, [binary]), binary));
+  await assert.rejects(resolveKeroPath(undefined, ["/does/not/exist/kero", "./kero"]), (error: unknown) => {
+    assert.ok(error instanceof KeroError && error.kind === "missing-cli");
+    assert.match(error.message, /Install Command Line Tool/);
+    assert.doesNotMatch(error.message, /preferences|CLI Path/i);
+    return true;
+  });
+});
+
+test("automatic detection skips directories, non-executables and broken links, and accepts executable symlinks", async () => {
+  await fakeKero("", async (binary) => {
+    const directory = dirname(binary);
+    const nonExecutable = join(directory, "not executable");
+    const broken = join(directory, "broken");
+    const alias = join(directory, "kero");
+    await writeFile(nonExecutable, "not a program", { mode: 0o644 });
+    await symlink(join(directory, "missing"), broken);
+    await symlink(binary, alias);
+    assert.equal(await resolveKeroPath(undefined, [directory, nonExecutable, broken, alias, binary]), alias);
+    await assert.rejects(resolveKeroPath(undefined, [directory, nonExecutable, broken]), hasKind("missing-cli"));
+  });
+});
+
+test("optional text override accepts spaces and home shorthand, while blank input keeps automatic detection", async () => {
+  await fakeKero("", async (binary) => {
+    assert.equal(await resolveKeroPath(undefined, [binary]), binary);
+    assert.equal(await resolveKeroPath("   ", [binary]), binary);
+    assert.equal(await resolveKeroPath(binary, []), binary);
+    assert.equal(await resolveKeroPath(`~/${relative(homedir(), binary)}`, []), binary);
+    await assert.rejects(resolveKeroPath("/does/not/exist/kero", [binary]), (error: unknown) => {
+      assert.ok(error instanceof KeroError && error.kind === "missing-cli");
+      assert.match(error.message, /Check Kero CLI Path/);
+      return true;
+    });
+    await assert.rejects(resolveKeroPath("./kero", [binary]), hasKind("missing-cli"));
+    await assert.rejects(resolveKeroPath(dirname(binary), [binary]), hasKind("missing-cli"));
+  });
+});
+
+test("a missing cached executable is rediscovered on the next request without retrying the failed call", async () => {
+  await fakeKero("console.log('[]')", async (binary) => {
+    const client = new KeroClient(binary);
+    assert.deepEqual(await client.sessions(), []);
+    await rm(binary);
+    await mkdir(binary);
+    await assert.rejects(client.sessions(), (error: unknown) => {
+      assert.ok(error instanceof KeroError && error.kind === "missing-cli");
+      assert.match(error.message, /Cannot execute Kero/);
+      return true;
+    });
+    await assert.rejects(client.sessions(), (error: unknown) => {
+      assert.ok(error instanceof KeroError && error.kind === "missing-cli");
+      assert.match(error.message, /Check Kero CLI Path/);
+      return true;
+    });
+  });
 });
 
 test("passes arguments literally without shell expansion", async () => {

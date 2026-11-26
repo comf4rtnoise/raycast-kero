@@ -7,11 +7,10 @@ import {
   Icon,
   Keyboard,
   List,
-  PopToRootType,
   openExtensionPreferences,
-  showToast,
-  Toast,
+  PopToRootType,
 } from "@raycast/api";
+import { showFailureToast } from "@raycast/utils";
 import { useEffect, useRef, useState } from "react";
 import { NewSessionForm } from "./new-session";
 import { InstallKeroAction } from "./components/install-kero-action";
@@ -60,7 +59,7 @@ function CommonActions({ refresh, error }: { refresh: () => void; error?: Error 
 }
 
 export default function SearchSessions() {
-  const { keroPath } = getPreferenceValues<{ keroPath?: string }>();
+  const { keroPath } = getPreferenceValues<Preferences>();
   const { client, groups, isLoading, error, hasSnapshot, refresh } = useSessions(keroPath);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
@@ -77,11 +76,7 @@ export default function SearchSessions() {
     lastRefreshError.current = error.message;
     // Warn even when search filtering hides the warning row. Avoid repeating
     // the same toast on every polling failure or changing the root title.
-    void showToast({
-      style: Toast.Style.Failure,
-      title: "Sessions May Be Outdated",
-      message: error.message,
-    }).catch(() => undefined);
+    void showFailureToast(error, { title: "Sessions May Be Outdated" }).catch(() => undefined);
   }, [error, hasSnapshot]);
 
   async function focus(item: PaneItem) {
@@ -91,23 +86,18 @@ export default function SearchSessions() {
       await client.focus(item.id);
     } catch (reason) {
       if (reason instanceof KeroError && reason.kind === "missing-target") refresh();
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Could Not Open Kero Pane",
-        message: reason instanceof Error ? reason.message : String(reason),
-      });
-      focusing.current = false;
+      try {
+        await showFailureToast(reason, { title: "Could Not Open Kero Pane" });
+      } finally {
+        focusing.current = false;
+      }
       return;
     }
     try {
       // Do not hide Raycast until Kero has accepted the focus request.
       await closeMainWindow({ popToRootType: PopToRootType.Immediate });
     } catch (reason) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Pane Opened, but Raycast Could Not Close",
-        message: reason instanceof Error ? reason.message : String(reason),
-      });
+      await showFailureToast(reason, { title: "Pane Opened, but Raycast Could Not Close" });
     } finally {
       focusing.current = false;
     }
@@ -187,7 +177,7 @@ export default function SearchSessions() {
                   subtitle={paneDirectoryLabel(item.directory, group.subtitle)}
                   keywords={item.keywords}
                   icon={{
-                    source: item.icon.source,
+                    source: "builtin" in item.icon.source ? Icon[item.icon.source.builtin] : item.icon.source.asset,
                     tintColor:
                       item.icon.tint === "primary"
                         ? Color.PrimaryText

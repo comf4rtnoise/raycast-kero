@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { access } from "node:fs/promises";
+import { access, stat } from "node:fs/promises";
 import { constants } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, isAbsolute, join } from "node:path";
@@ -27,38 +27,40 @@ export function localEnvironment(source: NodeJS.ProcessEnv = process.env): NodeJ
   return env;
 }
 
-export async function resolveKeroPath(preference?: string, path = process.env.PATH || ""): Promise<string> {
+export function keroCandidates(path = process.env.PATH || "", home = homedir()): string[] {
+  return [
+    "/usr/local/bin/kero",
+    "/opt/homebrew/bin/kero",
+    ...path
+      .split(delimiter)
+      .filter(isAbsolute)
+      .map((dir) => join(dir, "kero")),
+    "/Applications/Kero.app/Contents/MacOS/Kero",
+    join(home, "Applications/Kero.app/Contents/MacOS/Kero"),
+  ];
+}
+
+export async function resolveKeroPath(preference?: string, candidates = keroCandidates()): Promise<string> {
   const configured = preference?.trim();
   const expanded = configured?.startsWith("~/") ? join(homedir(), configured.slice(2)) : configured;
   if (expanded && !isAbsolute(expanded)) {
-    throw new KeroError(
-      "missing-cli",
-      "Set Kero CLI Path to an absolute executable path, such as /usr/local/bin/kero.",
-    );
+    throw new KeroError("missing-cli", "Set Kero CLI Path to an absolute path or leave it empty for auto-detection.");
   }
-  const candidates = expanded
-    ? [expanded]
-    : [
-        "/usr/local/bin/kero",
-        "/opt/homebrew/bin/kero",
-        ...path
-          .split(delimiter)
-          .filter(isAbsolute)
-          .map((dir) => join(dir, "kero")),
-      ];
-  for (const candidate of new Set(candidates)) {
+  for (const candidate of new Set(expanded ? [expanded] : candidates)) {
+    if (!isAbsolute(candidate)) continue;
     try {
+      if (!(await stat(candidate)).isFile()) continue;
       await access(candidate, constants.X_OK);
       return candidate;
     } catch {
-      // Try the next known location, but never silently ignore an explicit preference.
+      // Try other detected installations, but never silently ignore an explicit override.
     }
   }
   throw new KeroError(
     "missing-cli",
     expanded
-      ? `Cannot execute ${expanded}. Check Kero CLI Path in extension preferences.`
-      : "Kero CLI was not found. Install Kero, or set Kero CLI Path in extension preferences.",
+      ? `Cannot execute ${expanded}. Check Kero CLI Path in extension preferences, or clear it for auto-detection.`
+      : "Kero was not found. Install Kero, or choose Kero → Install Command Line Tool… in its menu bar, then refresh.",
   );
 }
 
@@ -74,7 +76,10 @@ export function runKero(binary: string, args: string[], signal?: AbortSignal): P
         const detail = stderr.trim().slice(0, 500);
         if (error.code === "ENOENT" || error.code === "EACCES") {
           return reject(
-            new KeroError("missing-cli", "Cannot execute Kero. Check Kero CLI Path in extension preferences."),
+            new KeroError(
+              "missing-cli",
+              "Cannot execute Kero. Check or clear Kero CLI Path in extension preferences, or reinstall Kero's command-line tool.",
+            ),
           );
         }
         if (error.code === 3) {
@@ -111,7 +116,13 @@ export class KeroClient {
       throw error;
     });
     const binary = await this.binary;
-    return runKero(binary, args, signal);
+    try {
+      return await runKero(binary, args, signal);
+    } catch (error) {
+      // Re-detect on the next request if an installation moved. Never retry a mutation here.
+      if (error instanceof KeroError && error.kind === "missing-cli") this.binary = undefined;
+      throw error;
+    }
   }
 
   async sessions(signal?: AbortSignal) {
