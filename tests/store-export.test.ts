@@ -37,6 +37,13 @@ test("Store export excludes development material without deleting the independen
     const programLogos = readdirSync(join(destination, "assets/kero")).filter((name) => name.startsWith("si-"));
     assert.deepEqual(programLogos.sort(), ["si-deno.svg", "si-git.svg", "si-githubcopilot.svg"]);
     const manifest = json(join(destination, "package.json"));
+    const sourceManifest = json(join(root, "package.json"));
+    assert.deepEqual(manifest.tools, sourceManifest.tools);
+    assert.deepEqual(manifest.ai, sourceManifest.ai);
+    for (const tool of manifest.tools) {
+      const file = `src/tools/${tool.name}.ts`;
+      assert.equal(readFileSync(join(destination, file), "utf8"), readFileSync(join(root, file), "utf8"));
+    }
     assert.equal(manifest.scripts.test, undefined);
     assert.equal(manifest.scripts["export:store"], undefined);
     assert.equal(manifest.scripts.publish, "npx @raycast/api@latest publish");

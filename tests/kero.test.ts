@@ -123,6 +123,22 @@ test("client reads JSON and focuses only an explicit pane", async () => {
   );
 });
 
+test("reads only an explicit terminal screen with a fixed line limit and no scrollback", async () => {
+  await fakeKero(
+    `const assert = require('node:assert/strict');
+     assert.deepEqual(process.argv.slice(2), ['read', 'pane123', '-n', '80']);
+     for (const key of ['KERO_HOST', 'KERO_SESSION', 'KERO_PANE']) assert.equal(process.env[key], undefined);
+     console.log('terminal output');`,
+    async (binary) => {
+      const client = new KeroClient(binary);
+      assert.equal(await client.readPane("pane123"), "terminal output\n");
+      await assert.rejects(client.readPane("--all"), hasKind("missing-target"));
+      await assert.rejects(client.readPane(""), hasKind("missing-target"));
+      await assert.rejects(client.readPane("pane; command"), hasKind("missing-target"));
+    },
+  );
+});
+
 test("creates a local shell session with explicit Home and opens only its returned pane on request", async () => {
   await fakeKero(
     `

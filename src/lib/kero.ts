@@ -170,6 +170,14 @@ export class KeroClient {
     }
   }
 
+  async readPane(paneId: string, signal?: AbortSignal) {
+    if (typeof paneId !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(paneId)) {
+      throw new KeroError("missing-target", "Invalid pane ID. Refresh the list.");
+    }
+    // Never include scrollback (-a) or rely on an inherited target.
+    return this.run(["read", paneId, "-n", "80"], signal);
+  }
+
   async focus(paneId: string, signal?: AbortSignal) {
     // IDs come from validated JSON, not user input. Never use a session-name fallback.
     if (!paneId || paneId.startsWith("-")) throw new KeroError("missing-target", "Invalid pane ID. Refresh the list.");

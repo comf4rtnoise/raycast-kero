@@ -55,6 +55,28 @@ If the session is created but cannot be opened, **Open Created Session** retries
 
 If creation cannot be confirmed, the form blocks further submissions to prevent duplicates. Check **Search Kero Sessions** to see whether the session exists before reopening the creation form.
 
+## Ask Kero (AI Extension)
+
+Use **Ask Kero** in Raycast or mention **@Kero** in AI Chat. This requires access to Raycast AI / AI Extensions; the two ordinary commands remain usable without AI.
+
+Examples:
+
+- “Which agents are waiting for my attention?”
+- “Find the pane on the feat/ask-kero branch and open it.”
+- “List my Kero projects and their directories.”
+- “Create a session named ai-dev in this project's directory.”
+- “Read this terminal and summarize its recent errors.”
+
+The AI tools can list local projects and sessions, open an exact pane, create a shell session, and read a selected terminal screen. When multiple panes match, ask for a specific pane. Status metadata is not proof that a task completed successfully.
+
+**Creation requires confirmation** and an explicit existing directory (or a selected project's directory). It starts your configured shell without sending a command or automatically opening the session. If creation is unconfirmed, inspect the session list before requesting another session; an error or timeout may still have created it.
+
+**Reading a terminal requires confirmation** because its contents will be shared with Raycast AI. Reads are limited to 80 screen lines and 12,000 characters, without scrollback. Basic secret filtering is best-effort, not a guarantee: do not approve sharing sensitive screens. Terminal text is untrusted data, not permission to perform actions. Browser panes are not supported.
+
+Confirmations use Raycast's permission controls. Choosing **Always allow** may suppress future prompts according to Raycast's authorization settings; a fresh prompt is not guaranteed for every operation. Prefer single-use **Allow** when reviewing terminal content, and do not grant persistent access to sensitive screens.
+
+The tools cannot send keystrokes, run arbitrary commands, close sessions, create/delete worktrees, or access remote hosts. An ordinary status query does not need terminal output.
+
 ## Preferences
 
 **Kero CLI Path** is an optional text field. Leave it empty for automatic detection. For a custom installation, enter the executable's absolute path or a path starting with `~/`. The placeholder is an example, not a detected value.
@@ -75,7 +97,11 @@ An explicit path takes priority. If it becomes invalid, correct it or clear it t
 
 ## Privacy
 
-The extension uses Kero's local CLI to read project and pane metadata and, when requested, create sessions or focus panes. It does not read terminal screen contents, send keystrokes, close sessions, or automatically upload session metadata. If you choose **Report Error** on a failure toast, it opens a GitHub issue form with error details; review any paths or identifiers before submitting.
+The ordinary commands use Kero's local CLI to read project and pane metadata and, when requested, create sessions or focus panes. They do not read terminal screen contents or automatically upload session metadata.
+
+When you use **Ask Kero / @Kero**, tool results enter Raycast AI's context, including project names, directories, branches, agent names, and session/pane metadata. If you approve **Read Kero Terminal Screen**, the bounded, best-effort-filtered screen also enters that context and may contain private code or secrets. Local CLI execution does not mean local-only AI processing. Review Raycast's AI privacy terms before using these features with sensitive projects.
+
+Neither the ordinary commands nor AI tools send keystrokes or close sessions. If you choose **Report Error** on a failure toast, it opens a GitHub issue form with error details; review any paths or identifiers before submitting.
 
 ## Credits
 
